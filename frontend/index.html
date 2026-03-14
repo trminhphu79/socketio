@@ -26,7 +26,7 @@
     /* ── Layout ── */
     .clients-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 16px;
       margin-bottom: 20px;
     }
@@ -189,26 +189,26 @@
 <h1>Socket.IO — Room Filter Demo</h1>
 
 <div class="clients-grid">
-  <!-- Client 1 -->
+  <!-- Client 1: Bao Nguyen -->
   <div class="card" id="panel-c1">
     <div class="card-header">
       <span class="dot" id="dot-c1"></span>
       Client 1
     </div>
     <div class="row">
-      <div class="field"><label>Name</label><input id="c1-name" value="Alice" /></div>
+      <div class="field"><label>Name</label><input id="c1-name" value="Bao Nguyen" /></div>
       <div class="field"><label>User ID</label><input id="c1-userId" value="u001" /></div>
     </div>
     <div class="row">
       <div class="field">
         <label>Role</label>
         <select id="c1-role">
-          <option value="admin">Admin</option>
+          <option value="admin" selected>Admin</option>
           <option value="moderator">Moderator</option>
-          <option value="user" selected>User</option>
+          <option value="user">User</option>
         </select>
       </div>
-      <div class="field"><label>Age</label><input id="c1-age" type="number" value="28" /></div>
+      <div class="field"><label>Age</label><input id="c1-age" type="number" value="30" /></div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-join"  id="c1-join-btn"  onclick="joinRoom('c1')">Join Room</button>
@@ -217,14 +217,14 @@
     <div class="log" id="c1-log"><span class="log-entry log-info">Waiting to join...</span></div>
   </div>
 
-  <!-- Client 2 -->
+  <!-- Client 2: Phu Tran -->
   <div class="card" id="panel-c2">
     <div class="card-header">
       <span class="dot" id="dot-c2"></span>
       Client 2
     </div>
     <div class="row">
-      <div class="field"><label>Name</label><input id="c2-name" value="Bob" /></div>
+      <div class="field"><label>Name</label><input id="c2-name" value="Phu Tran" /></div>
       <div class="field"><label>User ID</label><input id="c2-userId" value="u002" /></div>
     </div>
     <div class="row">
@@ -236,7 +236,7 @@
           <option value="user">User</option>
         </select>
       </div>
-      <div class="field"><label>Age</label><input id="c2-age" type="number" value="35" /></div>
+      <div class="field"><label>Age</label><input id="c2-age" type="number" value="26" /></div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-join"  id="c2-join-btn"  onclick="joinRoom('c2')">Join Room</button>
@@ -245,32 +245,60 @@
     <div class="log" id="c2-log"><span class="log-entry log-info">Waiting to join...</span></div>
   </div>
 
-  <!-- Client 3 -->
+  <!-- Client 3: Khoi Tran -->
   <div class="card" id="panel-c3">
     <div class="card-header">
       <span class="dot" id="dot-c3"></span>
       Client 3
     </div>
     <div class="row">
-      <div class="field"><label>Name</label><input id="c3-name" value="Carol" /></div>
+      <div class="field"><label>Name</label><input id="c3-name" value="Khoi Tran" /></div>
       <div class="field"><label>User ID</label><input id="c3-userId" value="u003" /></div>
     </div>
     <div class="row">
       <div class="field">
         <label>Role</label>
         <select id="c3-role">
-          <option value="admin" selected>Admin</option>
+          <option value="admin">Admin</option>
           <option value="moderator">Moderator</option>
-          <option value="user">User</option>
+          <option value="user" selected>User</option>
         </select>
       </div>
-      <div class="field"><label>Age</label><input id="c3-age" type="number" value="22" /></div>
+      <div class="field"><label>Age</label><input id="c3-age" type="number" value="25" /></div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-join"  id="c3-join-btn"  onclick="joinRoom('c3')">Join Room</button>
       <button class="btn btn-leave" id="c3-leave-btn" onclick="leaveRoom('c3')" disabled>Leave</button>
     </div>
     <div class="log" id="c3-log"><span class="log-entry log-info">Waiting to join...</span></div>
+  </div>
+
+  <!-- Client 4: Hieu Nguyen -->
+  <div class="card" id="panel-c4">
+    <div class="card-header">
+      <span class="dot" id="dot-c4"></span>
+      Client 4
+    </div>
+    <div class="row">
+      <div class="field"><label>Name</label><input id="c4-name" value="Hieu Nguyen" /></div>
+      <div class="field"><label>User ID</label><input id="c4-userId" value="u004" /></div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Role</label>
+        <select id="c4-role">
+          <option value="admin">Admin</option>
+          <option value="moderator">Moderator</option>
+          <option value="user" selected>User</option>
+        </select>
+      </div>
+      <div class="field"><label>Age</label><input id="c4-age" type="number" value="28" /></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-join"  id="c4-join-btn"  onclick="joinRoom('c4')">Join Room</button>
+      <button class="btn btn-leave" id="c4-leave-btn" onclick="leaveRoom('c4')" disabled>Leave</button>
+    </div>
+    <div class="log" id="c4-log"><span class="log-entry log-info">Waiting to join...</span></div>
   </div>
 </div>
 
@@ -447,7 +475,7 @@
     };
     const message = document.getElementById('msg-text').value.trim();
     if (!message) return;
-    dash.emit('send-filtered', { filter, message });
+    dash.emit('new-conversation-publish', { filter, message });
   }
 
   function renderTable(clients) {
@@ -495,7 +523,7 @@
     box.scrollTop = box.scrollHeight;
   }
 
-  const clientColors = { c1: '#6366f1', c2: '#22c55e', c3: '#f87171' };
+  const clientColors = { c1: '#6366f1', c2: '#22c55e', c3: '#f87171', c4: '#f472b6' };
 
   function showToast(clientName, message, filterDesc, id) {
     const container = document.getElementById('toast-container');

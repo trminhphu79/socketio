@@ -16,7 +16,7 @@ socketio/
 │   ├── server.js       ← Node.js + Socket.IO server
 │   └── package.json
 └── frontend/
-    └── index.html      ← 3 client panels + dashboard (pure HTML/CSS/JS)
+    └── index.html      ← 4 client panels + dashboard (pure HTML/CSS/JS)
 ```
 
 ---
@@ -49,7 +49,7 @@ CLIENT                          SERVER
   │<─ room-members ─────────────  │  updated member list sent to room
   │                               │
   │  (later)                      │
-  │                               │<── send-filtered { filter, message }
+  │                               │<── new-conversation-publish { filter, message }
   │                               │    server loops stored clients
   │                               │    applies filter conditions
   │<─ message ──────────────────  │    emit ONLY to matched socketIds
@@ -71,9 +71,9 @@ const socket = io('http://localhost:3000');
 socket.on('connect', () => {
   socket.emit('join-room', {
     userId: 'u001',
-    name:   'Alice',
-    role:   'user',
-    age:    28,
+    name:   'Bao Nguyen',
+    role:   'admin',
+    age:    30,
   });
 });
 ```
@@ -110,13 +110,14 @@ socket.on('join-room', (userInfo) => {
 
 ## Phase 2 — Server Stores Client State
 
-After all 3 clients join, `roomClients['main-room']` looks like this:
+After all 4 clients join, `roomClients['main-room']` looks like this:
 
 ```js
 {
-  "abc123": { socketId: "abc123", name: "Alice", role: "user",      age: 28 },
-  "def456": { socketId: "def456", name: "Bob",   role: "moderator", age: 35 },
-  "ghi789": { socketId: "ghi789", name: "Carol", role: "admin",     age: 22 },
+  "abc123": { socketId: "abc123", name: "Bao Nguyen",  role: "admin",     age: 30 },
+  "def456": { socketId: "def456", name: "Phu Tran",    role: "moderator", age: 26 },
+  "ghi789": { socketId: "ghi789", name: "Khoi Tran",   role: "user",      age: 25 },
+  "jkl012": { socketId: "jkl012", name: "Hieu Nguyen", role: "user",      age: 28 },
 }
 ```
 
@@ -126,10 +127,10 @@ This is a plain in-memory object — a dictionary from `socketId → userInfo`. 
 
 ## Phase 3 — Filtered Emit
 
-When the dashboard sends a `send-filtered` event, the server evaluates each stored client against the filter conditions:
+When the dashboard sends a `new-conversation-publish` event, the server evaluates each stored client against the filter conditions:
 
 ```js
-socket.on('send-filtered', ({ filter, message }) => {
+socket.on('new-conversation-publish', ({ filter, message }) => {
   const clients = Object.values(roomClients[ROOM]);  // all stored clients
 
   const targets = clients.filter((c) => {
@@ -156,13 +157,14 @@ socket.on('send-filtered', ({ filter, message }) => {
 
 | Filter config | Who receives it |
 |---|---|
-| `role: "all"` | Alice, Bob, Carol |
-| `role: "admin"` | Carol only |
-| `role: "moderator"` | Bob only |
-| `minAge: 25` | Alice (28), Bob (35) |
-| `maxAge: 30` | Alice (28), Carol (22) |
-| `role: "user", minAge: 20` | Alice (user, 28) |
-| `minAge: 30, maxAge: 40` | Bob (35) only |
+| `role: "all"` | Bao, Phu, Khoi, Hieu |
+| `role: "admin"` | Bao Nguyen only |
+| `role: "moderator"` | Phu Tran only |
+| `role: "user"` | Khoi Tran, Hieu Nguyen |
+| `minAge: 27` | Bao (30), Hieu (28) |
+| `maxAge: 26` | Phu (26), Khoi (25) |
+| `role: "user", minAge: 27` | Hieu Nguyen (user, 28) |
+| `minAge: 25, maxAge: 28` | Phu (26), Khoi (25), Hieu (28) |
 
 ### Why `io.to(socketId)` and not `io.to(ROOM)`?
 
@@ -182,7 +184,7 @@ By filtering first (app level) and then emitting per `socketId` (transport level
 | Event | Payload | Description |
 |---|---|---|
 | `join-room` | `{ userId, name, role, age }` | Subscribe to the room with user metadata |
-| `send-filtered` | `{ filter, message }` | Send message to clients matching filter |
+| `new-conversation-publish` | `{ filter, message }` | Publish a conversation to clients matching filter |
 | `get-room-state` | _(none)_ | Request current connected clients snapshot |
 
 ### Server → Client
@@ -227,9 +229,10 @@ Socket.IO automatically removes the socket from its internal rooms on disconnect
 │  ┌──────────────────────┐        ┌────────────────────┐  │
 │  │ "main-room"          │        │ roomClients        │  │
 │  │   Set<socketId>      │        │  [socketId]:       │  │
-│  │   ├ abc123           │        │    name, role, age │  │
-│  │   ├ def456           │        │    userId, etc.    │  │
-│  │   └ ghi789           │        └────────────────────┘  │
+│  │   ├ abc123 (Bao)     │        │    name, role, age │  │
+│  │   ├ def456 (Phu)     │        │    userId, etc.    │  │
+│  │   ├ ghi789 (Khoi)    │        └────────────────────┘  │
+│  │   └ jkl012 (Hieu)    │                                 │
 │  └──────────────────────┘                                │
 │         used for room broadcasts        used for filters  │
 └─────────────────────────────────────────────────────────┘

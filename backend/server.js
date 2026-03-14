@@ -54,8 +54,8 @@ io.on('connection', (socket) => {
     broadcastRoomState();
   });
 
-  // Dashboard/admin sends a filtered message
-  socket.on('send-filtered', ({ filter, message }) => {
+  // Dashboard/admin publishes a new conversation to filtered clients
+  socket.on('new-conversation-publish', ({ filter, message }) => {
     const clients = Object.values(roomClients[ROOM]);
 
     const targets = clients.filter((c) => {
