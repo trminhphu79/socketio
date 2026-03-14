@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Socket.IO Room Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.4rem;
+      color: #94a3b8;
+      margin-bottom: 20px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ── Layout ── */
+    .clients-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .dashboard-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-header {
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #475569;
+    }
+    .dot.online { background: #22c55e; }
+
+    /* ── Form elements ── */
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+    .field input, .field select {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #e2e8f0;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+    }
+    .field input:focus, .field select:focus { outline: none; border-color: #6366f1; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.8rem;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-join  { background: #6366f1; color: #fff; }
+    .btn-leave { background: #ef4444; color: #fff; }
+    .btn-send  { background: #f59e0b; color: #000; }
+
+    /* ── Log / message box ── */
+    .log {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.75rem;
+      font-family: monospace;
+      overflow-y: auto;
+      max-height: 200px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-entry {
+      padding: 4px 8px;
+      border-radius: 4px;
+      line-height: 1.4;
+      animation: fadeIn 0.3s ease;
+    }
+    .log-info    { color: #94a3b8; }
+    .log-join    { color: #22c55e; background: rgba(34,197,94,.08); }
+    .log-left    { color: #f87171; background: rgba(248,113,113,.08); }
+    .log-message { color: #fbbf24; background: rgba(251,191,36,.1); border-left: 3px solid #f59e0b; padding-left: 8px; }
+    .log-ack     { color: #818cf8; background: rgba(129,140,248,.1); }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Toast/Alert ── */
+    #toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: #1e293b;
+      border: 1px solid #f59e0b;
+      border-left: 4px solid #f59e0b;
+      border-radius: 8px;
+      padding: 12px 16px;
+      min-width: 280px;
+      max-width: 360px;
+      font-size: 0.82rem;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      animation: slideIn 0.3s ease;
+    }
+    .toast-title { font-weight: 700; color: #f59e0b; margin-bottom: 4px; }
+    .toast-body  { color: #e2e8f0; }
+    .toast-meta  { color: #64748b; font-size: 0.7rem; margin-top: 4px; }
+    .toast.removing { animation: slideOut 0.3s ease forwards; }
+
+    @keyframes slideIn  { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideOut { from { opacity: 1; transform: translateX(0); }    to { opacity: 0; transform: translateX(40px); } }
+
+    /* ── Dashboard table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    th { color: #64748b; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.06em; padding: 6px 8px; text-align: left; border-bottom: 1px solid #334155; }
+    td { padding: 6px 8px; border-bottom: 1px solid #1e293b; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+    .badge-admin     { background: rgba(239,68,68,.2);   color: #f87171; }
+    .badge-moderator { background: rgba(245,158,11,.2);  color: #fbbf24; }
+    .badge-user      { background: rgba(99,102,241,.2);  color: #818cf8; }
+
+    .empty-state { color: #475569; font-size: 0.8rem; text-align: center; padding: 20px; }
+
+    /* ── Filter form ── */
+    .filter-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .msg-row { display: flex; gap: 8px; }
+    .msg-row input { flex: 1; }
+  </style>
+</head>
+<body>
+
+<h1>Socket.IO — Room Filter Demo</h1>
+
+<div class="clients-grid">
+  <!-- Client 1 -->
+  <div class="card" id="panel-c1">
+    <div class="card-header">
+      <span class="dot" id="dot-c1"></span>
+      Client 1
+    </div>
+    <div class="row">
+      <div class="field"><label>Name</label><input id="c1-name" value="Alice" /></div>
+      <div class="field"><label>User ID</label><input id="c1-userId" value="u001" /></div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Role</label>
+        <select id="c1-role">
+          <option value="admin">Admin</option>
+          <option value="moderator">Moderator</option>
+          <option value="user" selected>User</option>
+        </select>
+      </div>
+      <div class="field"><label>Age</label><input id="c1-age" type="number" value="28" /></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-join"  id="c1-join-btn"  onclick="joinRoom('c1')">Join Room</button>
+      <button class="btn btn-leave" id="c1-leave-btn" onclick="leaveRoom('c1')" disabled>Leave</button>
+    </div>
+    <div class="log" id="c1-log"><span class="log-entry log-info">Waiting to join...</span></div>
+  </div>
+
+  <!-- Client 2 -->
+  <div class="card" id="panel-c2">
+    <div class="card-header">
+      <span class="dot" id="dot-c2"></span>
+      Client 2
+    </div>
+    <div class="row">
+      <div class="field"><label>Name</label><input id="c2-name" value="Bob" /></div>
+      <div class="field"><label>User ID</label><input id="c2-userId" value="u002" /></div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Role</label>
+        <select id="c2-role">
+          <option value="admin">Admin</option>
+          <option value="moderator" selected>Moderator</option>
+          <option value="user">User</option>
+        </select>
+      </div>
+      <div class="field"><label>Age</label><input id="c2-age" type="number" value="35" /></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-join"  id="c2-join-btn"  onclick="joinRoom('c2')">Join Room</button>
+      <button class="btn btn-leave" id="c2-leave-btn" onclick="leaveRoom('c2')" disabled>Leave</button>
+    </div>
+    <div class="log" id="c2-log"><span class="log-entry log-info">Waiting to join...</span></div>
+  </div>
+
+  <!-- Client 3 -->
+  <div class="card" id="panel-c3">
+    <div class="card-header">
+      <span class="dot" id="dot-c3"></span>
+      Client 3
+    </div>
+    <div class="row">
+      <div class="field"><label>Name</label><input id="c3-name" value="Carol" /></div>
+      <div class="field"><label>User ID</label><input id="c3-userId" value="u003" /></div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Role</label>
+        <select id="c3-role">
+          <option value="admin" selected>Admin</option>
+          <option value="moderator">Moderator</option>
+          <option value="user">User</option>
+        </select>
+      </div>
+      <div class="field"><label>Age</label><input id="c3-age" type="number" value="22" /></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-join"  id="c3-join-btn"  onclick="joinRoom('c3')">Join Room</button>
+      <button class="btn btn-leave" id="c3-leave-btn" onclick="leaveRoom('c3')" disabled>Leave</button>
+    </div>
+    <div class="log" id="c3-log"><span class="log-entry log-info">Waiting to join...</span></div>
+  </div>
+</div>
+
+<div class="dashboard-section">
+
+  <div class="card">
+    <div class="card-header" style="color:#22c55e">
+      Room Monitor — main-room
+      <span id="room-count" style="margin-left:auto;background:#0f172a;padding:2px 10px;border-radius:999px;font-size:0.7rem;color:#94a3b8">0 connected</span>
+    </div>
+    <div id="clients-table-wrap">
+      <div class="empty-state" id="empty-state">No clients in room</div>
+      <table id="clients-table" style="display:none">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>User ID</th>
+            <th>Role</th>
+            <th>Age</th>
+            <th>Joined</th>
+          </tr>
+        </thead>
+        <tbody id="clients-tbody"></tbody>
+      </table>
+    </div>
+    <div class="log" id="dash-room-log" style="max-height:120px">
+      <span class="log-entry log-info">Room events will appear here...</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="color:#f59e0b">Send Filtered Message</div>
+
+    <div class="filter-row">
+      <div class="field">
+        <label>Filter by Role</label>
+        <select id="filter-role">
+          <option value="all">All roles</option>
+          <option value="admin">Admin only</option>
+          <option value="moderator">Moderator only</option>
+          <option value="user">User only</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Min Age (≥)</label>
+        <input id="filter-minAge" type="number" placeholder="e.g. 25" />
+      </div>
+      <div class="field">
+        <label>Max Age (≤)</label>
+        <input id="filter-maxAge" type="number" placeholder="e.g. 40" />
+      </div>
+    </div>
+
+    <div class="msg-row">
+      <div class="field" style="flex:1">
+        <label>Message</label>
+        <input id="msg-text" placeholder="Type a message to send..." value="Hello filtered group!" />
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-send" onclick="sendFiltered()">Send ▶</button>
+      </div>
+    </div>
+
+    <div class="log" id="dash-send-log" style="max-height:200px">
+      <span class="log-entry log-info">Send log will appear here...</span>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const sockets = {};
+
+  function joinRoom(id) {
+    if (sockets[id]) return;
+
+    const userInfo = {
+      userId : document.getElementById(`${id}-userId`).value.trim(),
+      name   : document.getElementById(`${id}-name`).value.trim(),
+      role   : document.getElementById(`${id}-role`).value,
+      age    : Number(document.getElementById(`${id}-age`).value),
+    };
+
+    const socket = io('http://localhost:3000');
+    sockets[id] = socket;
+
+    socket.on('connect', () => {
+      socket.emit('join-room', userInfo);
+      setOnline(id, true);
+      log(id, `Connected as <b>${userInfo.name}</b> (${userInfo.role}, age ${userInfo.age})`, 'log-join');
+      document.getElementById(`${id}-join-btn`).disabled  = true;
+      document.getElementById(`${id}-leave-btn`).disabled = false;
+    });
+
+    socket.on('join-ack', (data) => {
+      log(id, data.message, 'log-ack');
+    });
+
+    socket.on('room-members', (data) => {
+      const names = data.clients.map(c => c.name).join(', ');
+      log(id, `Room members: ${names}`, 'log-info');
+    });
+
+    socket.on('room-event', (data) => {
+      const style = data.event === 'joined' ? 'log-join' : 'log-left';
+      log(id, `${data.event === 'joined' ? '⊕' : '⊖'} ${data.user.name} ${data.event}`, style);
+    });
+
+    socket.on('message', (data) => {
+      console.log(`Socket with ${id} recieved: `, data);
+      const filterDesc = buildFilterDesc(data.filter);
+      log(id, `📨 <b>${data.content}</b> <span style="color:#64748b">[filter: ${filterDesc}]</span>`, 'log-message');
+      showToast(userInfo.name, data.content, filterDesc, id);
+    });
+
+    socket.on('disconnect', () => {
+      log(id, 'Disconnected', 'log-left');
+      setOnline(id, false);
+    });
+  }
+
+  function leaveRoom(id) {
+    if (!sockets[id]) return;
+    sockets[id].disconnect();
+    delete sockets[id];
+    document.getElementById(`${id}-join-btn`).disabled  = false;
+    document.getElementById(`${id}-leave-btn`).disabled = true;
+    setOnline(id, false);
+  }
+
+  function setOnline(id, online) {
+    const dot = document.getElementById(`dot-${id}`);
+    dot.classList.toggle('online', online);
+  }
+
+  function log(id, html, cls = 'log-info') {
+    const box = document.getElementById(`${id}-log`);
+    const el  = document.createElement('div');
+    el.className = `log-entry ${cls}`;
+    el.innerHTML = `<span style="color:#475569">${timestamp()}</span> ${html}`;
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  const dash = io('http://localhost:3000');
+  dash.emit('get-room-state');
+
+  dash.on('dashboard-update', ({ clients }) => {
+    renderTable(clients);
+  });
+
+  dash.on('room-event', (data) => {
+    const style = data.event === 'joined' ? 'log-join' : 'log-left';
+    dashRoomLog(`${data.event === 'joined' ? '⊕' : '⊖'} ${data.user.name} (${data.user.role}) ${data.event}`, style);
+  });
+
+  dash.on('message-sent-log', (data) => {
+    const filterDesc = buildFilterDesc(data.filter);
+    const targets = data.targetNames.length ? data.targetNames.join(', ') : 'nobody';
+    dashSendLog(
+      `📤 "<b>${data.message}</b>" → filter: [${filterDesc}] → delivered to: <b>${targets}</b> (${data.targetCount})`,
+      'log-message'
+    );
+  });
+
+  function sendFiltered() {
+    const filter = {
+      role   : document.getElementById('filter-role').value,
+      minAge : document.getElementById('filter-minAge').value !== '' ? Number(document.getElementById('filter-minAge').value) : null,
+      maxAge : document.getElementById('filter-maxAge').value !== '' ? Number(document.getElementById('filter-maxAge').value) : null,
+    };
+    const message = document.getElementById('msg-text').value.trim();
+    if (!message) return;
+    dash.emit('send-filtered', { filter, message });
+  }
+
+  function renderTable(clients) {
+    const tbody   = document.getElementById('clients-tbody');
+    const table   = document.getElementById('clients-table');
+    const empty   = document.getElementById('empty-state');
+    const counter = document.getElementById('room-count');
+
+    counter.textContent = `${clients.length} connected`;
+
+    if (clients.length === 0) {
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    table.style.display = '';
+    empty.style.display = 'none';
+
+    tbody.innerHTML = clients.map(c => `
+      <tr>
+        <td style="font-weight:600">${c.name}</td>
+        <td style="color:#64748b">${c.userId}</td>
+        <td><span class="badge badge-${c.role}">${c.role}</span></td>
+        <td>${c.age}</td>
+        <td style="color:#475569">${new Date(c.joinedAt).toLocaleTimeString()}</td>
+      </tr>
+    `).join('');
+  }
+
+  function dashRoomLog(html, cls = 'log-info') {
+    const box = document.getElementById('dash-room-log');
+    const el  = document.createElement('div');
+    el.className = `log-entry ${cls}`;
+    el.innerHTML = `<span style="color:#475569">${timestamp()}</span> ${html}`;
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function dashSendLog(html, cls = 'log-info') {
+    const box = document.getElementById('dash-send-log');
+    const el  = document.createElement('div');
+    el.className = `log-entry ${cls}`;
+    el.innerHTML = `<span style="color:#475569">${timestamp()}</span> ${html}`;
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  const clientColors = { c1: '#6366f1', c2: '#22c55e', c3: '#f87171' };
+
+  function showToast(clientName, message, filterDesc, id) {
+    const container = document.getElementById('toast-container');
+    const toast     = document.createElement('div');
+    toast.className = 'toast';
+    toast.style.borderLeftColor = clientColors[id] || '#f59e0b';
+    toast.innerHTML = `
+      <div class="toast-title">📨 Message for ${clientName}</div>
+      <div class="toast-body">${message}</div>
+      <div class="toast-meta">filter: ${filterDesc}</div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('removing');
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  function timestamp() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function buildFilterDesc(f) {
+    const parts = [];
+    if (f.role && f.role !== 'all') parts.push(`role=${f.role}`);
+    if (f.minAge != null) parts.push(`age≥${f.minAge}`);
+    if (f.maxAge != null) parts.push(`age≤${f.maxAge}`);
+    return parts.length ? parts.join(' + ') : 'all';
+  }
+</script>
+</body>
+</html>
